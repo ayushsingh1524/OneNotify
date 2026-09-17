@@ -1,6 +1,6 @@
 # OneNotify implementation tracker
 
-Updated: 17 September 2026. Current phase: local testing release verified and prepared for GitHub publication. Hosting is explicitly deferred. All local release checks are complete; only the repository upload/remote verification remains.
+Updated: 17 September 2026. Current phase: local testing release published to GitHub on main. Hosting is explicitly deferred. Local checks and remote commit verification passed. Remaining work for this handoff: 0 minutes.
 
 `Written` means implementation exists. `Verified` requires a successful relevant check.
 
@@ -94,7 +94,9 @@ Prepared handoffs: [staging](STAGING.md), [hosting options](HOSTING_OPTIONS.md),
 | Reproducible setup and local test guide | Prepared |
 | Exclude secrets, backups, keys and generated caches | Passed; 193 indexed files audited, private environment/backup files ignored |
 | Final unit/build/API/browser checks | Passed: 23 backend, 6 frontend, 5 browser tests; API/security/manual and restore checks |
-| Commit and upload to ayushsingh1524/OneNotify | Local commits prepared; GitHub write-access dry run passed |
+| Commit and upload to ayushsingh1524/OneNotify | Published to main; remote commit matched local HEAD |
 | Hosting / paid infrastructure | Deferred by owner; not part of this milestone |
 
 Release verification: `sh scripts/check.sh` and `sh scripts/test-local.sh` both passed. The final API run recorded 57 successful requests (the counter includes notification polling, so totals may vary). No hosting resources were created.
+
+Repository: https://github.com/ayushsingh1524/OneNotify. GitHub Actions runs verification on pushes; local success is not a claim about an unfinished hosted workflow.
