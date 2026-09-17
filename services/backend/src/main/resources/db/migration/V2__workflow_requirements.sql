@@ -1,0 +1,1 @@
+CREATE TABLE workflow_requirements(id uuid PRIMARY KEY, provider_case_id uuid NOT NULL REFERENCES provider_cases, category varchar(60) NOT NULL, description text NOT NULL, UNIQUE(provider_case_id,category));

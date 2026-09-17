@@ -1,0 +1,12 @@
+{
+  email {$ACME_EMAIL}
+}
+{$STAGING_DOMAIN} {
+  @outside not remote_ip {$STAGING_ALLOWED_CIDR}
+  respond @outside "Private staging" 403
+  header {
+    Strict-Transport-Security "max-age=31536000"
+    -Server
+  }
+  reverse_proxy frontend:3000
+}

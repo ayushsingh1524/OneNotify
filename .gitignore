@@ -1,0 +1,24 @@
+node_modules/
+.next/
+target/
+.env
+*.log
+.DS_Store
+playwright-report/
+test-results/
+.env.*
+!.env.example
+!.env.staging.example
+backups/
+
+# Generated caches and machine-local configuration
+*.tsbuildinfo
+coverage/
+__pycache__/
+*.py[cod]
+.idea/
+.vscode/
+*.pem
+*.key
+*.p12
+*.pfx

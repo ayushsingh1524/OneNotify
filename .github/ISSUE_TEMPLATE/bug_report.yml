@@ -1,0 +1,25 @@
+name: Testing bug
+description: Report a reproducible issue using synthetic data
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: Use sample data only. Do not attach tokens, environment files, private documents or backup archives.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the page and action that failed.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser, Docker version and commit ID.

@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import { randomUUID,createHash } from 'node:crypto';
+const base=process.env.API_URL||'http://localhost:8080/api/v1';
+let checks=0;
+async function request(path,{token,body,method='GET',headers={},expected=200}={}){const h={...headers};if(token)h.Authorization=`Bearer ${token}`;if(body&&!(body instanceof FormData)){h['Content-Type']='application/json';body=JSON.stringify(body);}const r=await fetch(base+path,{method,body,headers:h});if(r.status!==expected)throw new Error(`${method} ${path}: expected ${expected}, got ${r.status}: ${await r.text()}`);checks++;return r;}
+async function json(path,options){return (await request(path,options)).json();}
+async function user(name){const data=await json('/auth/register',{method:'POST',body:{name,email:`test-${randomUUID()}@example.test`,password:'Integration-test-2026!'}});return {token:data.accessToken,...data.user};}
+const owner=await user('Integration owner');const stranger=await user('Other family');const viewer=await user('Read-only relative');
+const c=await json('/cases',{token:owner.token,method:'POST',body:{fullName:'Sample Family Member',dateOfBirth:'1950-01-01',dateOfDeath:'2025-01-01',city:'Pune',state:'Maharashtra',relationship:'Child',panLastFour:'123A',aadhaarLastFour:'1234',mobileNumbers:'',emailAddresses:'',knownServices:'SBI, LIC'}});const caseId=c.id;
+const o={token:owner.token};
+await request(`/cases/${caseId}`,{token:stranger.token,expected:404});
+await request('/admin',{token:owner.token,expected:403});
+await request(`/cases/${caseId}/members`,{...o,method:'POST',body:{email:viewer.email,role:'VIEWER'}});
+await request(`/cases/${caseId}`,{token:viewer.token});
+await request(`/cases/${caseId}/tasks`,{token:viewer.token,method:'POST',body:{title:'Should not be allowed'},expected:403});
+const providers=await json('/providers',o);const sbi=providers.find(p=>p.name==='SBI');assert(sbi,'Demo registry seeded');
+const pc=await json(`/cases/${caseId}/providers`,{...o,method:'POST',body:{providerId:sbi.id,action:'NOTIFY_DEATH'}});const id=pc.id;
+await request(`/provider-cases/${id}/submit`,{...o,method:'POST',headers:{'Idempotency-Key':randomUUID()},body:{consentId:randomUUID()},expected:409});
+assert.equal((await json(`/provider-cases/${id}/prepare`,{...o,method:'POST'})).state,'DOCUMENTS_PENDING');
+const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jG1sAAAAASUVORK5CYII=','base64');
+async function upload(category){const form=new FormData();form.append('category',category);form.append('file',new Blob([png],{type:'image/png'}),`${category}-SAMPLE.png`);return json(`/cases/${caseId}/documents`,{...o,method:'POST',body:form});}
+const death=await upload('DEATH_CERTIFICATE');const identity=await upload('USER_IDENTITY');assert.equal(death.checksum,createHash('sha256').update(png).digest('hex'));
+const fake=new FormData();fake.append('category','OTHER');fake.append('file',new Blob(['<script>bad</script>'],{type:'application/pdf'}),'bad.pdf');await request(`/cases/${caseId}/documents`,{...o,method:'POST',body:fake,expected:400});
+await request(`/documents/${death.id}/access`,{token:stranger.token,method:'POST',expected:404});
+let ticket=await json(`/documents/${death.id}/access`,{...o,method:'POST'});let file=await request(`/documents/${death.id}/content?ticket=${ticket.ticket}`,o);assert.deepEqual(Buffer.from(await file.arrayBuffer()),png);await request(`/documents/${death.id}/content?ticket=${ticket.ticket}`,{...o,expected:403});
+assert.equal((await json(`/provider-cases/${id}/prepare`,{...o,method:'POST'})).state,'USER_APPROVAL_REQUIRED');
+await request('/consents',{token:viewer.token,method:'POST',body:{providerCaseId:id,documentIds:[death.id,identity.id],approved:true},expected:403});
+await request('/consents',{...o,method:'POST',body:{providerCaseId:id,documentIds:[death.id],approved:true},expected:400});
+await request('/consents',{...o,method:'POST',body:{providerCaseId:id,documentIds:[death.id,identity.id],approved:false},expected:400});
+const consent=await json('/consents',{...o,method:'POST',body:{providerCaseId:id,documentIds:[death.id,identity.id],approved:true}});
+const key=randomUUID();const options={...o,method:'POST',headers:{'Idempotency-Key':key},body:{consentId:consent.id}};
+const [first,duplicate]=await Promise.all([json(`/provider-cases/${id}/submit`,options),json(`/provider-cases/${id}/submit`,options)]);assert.deepEqual(first,duplicate);assert(first.simulated);
+let detail=await json(`/provider-cases/${id}`,o);assert.equal(detail.timeline.filter(e=>e.to_state==='SUBMITTED').length,1);
+for(const state of ['PROVIDER_ACKNOWLEDGED','UNDER_REVIEW','ADDITIONAL_DOCUMENTS_REQUIRED'])assert.equal((await json(`/provider-cases/${id}/simulate-response`,{...o,method:'POST'})).state,state);
+assert.equal((await json(`/provider-cases/${id}/prepare`,{...o,method:'POST'})).state,'DOCUMENTS_PENDING');
+const nominee=await upload('NOMINEE_DOCUMENT');assert.equal((await json(`/provider-cases/${id}/prepare`,{...o,method:'POST'})).state,'USER_APPROVAL_REQUIRED');
+const secondConsent=await json('/consents',{...o,method:'POST',body:{providerCaseId:id,documentIds:[death.id,identity.id,nominee.id],approved:true}});
+await request(`/provider-cases/${id}/submit`,{...o,method:'POST',headers:{'Idempotency-Key':randomUUID()},body:{consentId:secondConsent.id}});
+for(const state of ['UNDER_REVIEW','APPROVED','COMPLETED'])assert.equal((await json(`/provider-cases/${id}/simulate-response`,{...o,method:'POST'})).state,state);
+assert.equal((await json(`/cases/${caseId}`,o)).summary.completed,1);
+await request(`/provider-cases/${id}/action`,{...o,method:'POST',body:{action:'resume'},expected:409});
+const task=await json(`/cases/${caseId}/tasks`,{...o,method:'POST',body:{title:'Collect sample paperwork',assignedTo:owner.id}});await request(`/tasks/${task.id}`,{...o,method:'PUT',body:{done:true}});
+await request(`/cases/${caseId}/correspondence`,{...o,method:'POST',body:{providerCaseId:id,kind:'CALL_NOTE',subject:'Sample reference',body:'Called the demo support line.',reference:'DEMO-123',attachments:[death.id],mentions:[viewer.id]}});
+const found=await json(`/search?caseId=${caseId}&q=Sample`,o);assert(found.some(r=>r.type==='correspondence'));
+const discovered=await json(`/cases/${caseId}/discovery/sample-email`,{...o,method:'POST'});assert(discovered.length>=3);assert(discovered.every(d=>d.status==='POSSIBLE'));
+await request(`/cases/${caseId}/discovery/${discovered[0].id}`,{...o,method:'PUT',body:{status:'CONFIRMED'}});
+let report=await request(`/cases/${caseId}/export`,o);assert(Buffer.from(await report.arrayBuffer()).subarray(0,5).equals(Buffer.from('%PDF-')));
+let zip=await request(`/provider-cases/${id}/package`,o);assert.equal(Buffer.from(await zip.arrayBuffer()).readUInt16LE(0),0x4b50);
+let events=await json(`/cases/${caseId}/timeline`,o);assert(events.some(e=>e.action==='USER_APPROVED_SUBMISSION'));assert(events.some(e=>e.action==='WORKFLOW_COMPLETED'));
+const member=(await json(`/cases/${caseId}/members`,o)).find(m=>m.user_id===viewer.id);
+const viewerTicket=await json(`/documents/${death.id}/access`,{token:viewer.token,method:'POST'});
+await request(`/cases/${caseId}/members/${member.id}`,{...o,method:'DELETE'});
+await request(`/documents/${death.id}/content?ticket=${viewerTicket.ticket}`,{token:viewer.token,expected:404});
+await request(`/cases/${caseId}`,{token:viewer.token,expected:404});
+let notified=false;for(let attempt=0;attempt<15;attempt++){const notifications=await json('/notifications',o);if(notifications.some(n=>n.case_id===caseId)){notified=true;break;}await new Promise(r=>setTimeout(r,1000));}assert(notified,'Kafka-driven notifications delivered');
+console.log(`PASS: ${checks} API checks; complete lifecycle, consent, concurrent idempotency, encrypted vault round-trip, permissions, discovery, PDF/ZIP exports, audit, Kafka notifications.`);
+console.log(`Test case: ${caseId}`);

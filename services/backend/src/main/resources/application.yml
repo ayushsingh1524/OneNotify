@@ -1,0 +1,80 @@
+server:
+  port: 8080
+  error:
+    include-message: never
+  forward-headers-strategy: none
+spring:
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
+      mail.smtp.starttls.required: ${MAIL_STARTTLS:false}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:15432/onenotify}
+    username: ${POSTGRES_USER:onenotify}
+    password: ${POSTGRES_PASSWORD:local-database-change-me}
+  flyway:
+    user: ${MIGRATION_USER:${POSTGRES_USER:onenotify}}
+    password: ${MIGRATION_PASSWORD:${POSTGRES_PASSWORD:local-database-change-me}}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: onenotify-notifications-v1
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+app:
+  scanner: ${MALWARE_SCANNER:demo}
+  jwt-secret: ${JWT_SECRET:local-only-change-this-64-character-signing-secret-before-deployment}
+  vault-key: ${VAULT_KEY:MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=}
+  minio-endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  minio-user: ${MINIO_ROOT_USER:onenotify}
+  minio-password: ${MINIO_ROOT_PASSWORD:local-storage-change-me}
+  demo-enabled: ${DEMO_ENABLED:true}
+  demo-email: ${DEMO_EMAIL:family@example.test}
+  demo-password: ${DEMO_PASSWORD:Family-demo-2026!}
+  secure-cookie: ${SECURE_COOKIE:false}
+logging:
+  structured:
+    format:
+      console: ecs
+  level:
+    root: INFO
+    org.springframework: INFO
+    org.apache.kafka: WARN
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} %-5level [%X{correlationId}] %logger{36} - %msg%n'
