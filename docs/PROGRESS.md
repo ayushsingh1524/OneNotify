@@ -1,6 +1,6 @@
 # OneNotify implementation tracker
 
-Updated: 17 September 2026. Current phase: local testing release and GitHub handoff. Hosting is explicitly deferred. Estimated remaining work for repository packaging and verification: 15–25 minutes; GitHub authentication may affect publishing.
+Updated: 17 September 2026. Current phase: local testing release verified and prepared for GitHub publication. Hosting is explicitly deferred. All local release checks are complete; only the repository upload/remote verification remains.
 
 `Written` means implementation exists. `Verified` requires a successful relevant check.
 
@@ -92,7 +92,9 @@ Prepared handoffs: [staging](STAGING.md), [hosting options](HOSTING_OPTIONS.md),
 |---|---|
 | Confirm target repo and preserve history | Target has no refs; local main initialized |
 | Reproducible setup and local test guide | Prepared |
-| Exclude secrets, backups, keys and generated caches | In progress; index audit required before commit |
-| Final unit/build/API/browser checks | In progress |
-| Commit and upload to ayushsingh1524/OneNotify | Pending verification and available authentication |
+| Exclude secrets, backups, keys and generated caches | Passed; 193 indexed files audited, private environment/backup files ignored |
+| Final unit/build/API/browser checks | Passed: 23 backend, 6 frontend, 5 browser tests; API/security/manual and restore checks |
+| Commit and upload to ayushsingh1524/OneNotify | Local commits prepared; GitHub write-access dry run passed |
 | Hosting / paid infrastructure | Deferred by owner; not part of this milestone |
+
+Release verification: `sh scripts/check.sh` and `sh scripts/test-local.sh` both passed. The final API run recorded 57 successful requests (the counter includes notification polling, so totals may vary). No hosting resources were created.

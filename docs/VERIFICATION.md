@@ -35,3 +35,7 @@ These results establish the tested local demonstration paths, not production cer
 - Browser scan found and fixed account reassurance/family-badge contrast; account marketing heading changed to H2 so the form remains the main H1.
 
 Prepared operational scripts have Python syntax checks. The GitHub workflow now includes staging structure validation and the database restore drill. Full production readiness remains open in ROADMAP.md and PROGRESS.md.
+
+## GitHub testing-release handoff
+
+Both `sh scripts/check.sh` and `sh scripts/test-local.sh` passed on the final testing-release source. The integration run recorded 57 successful API requests; the counter includes asynchronous notification polling and can vary between runs. All 5 browser tests and the isolated database restore drill passed. The source index audit checked 193 files without detecting excluded artifacts or credentials. Core frontend versions are pinned, route types are generated before typechecking, and the contribution/testing guides describe reproducible local commands. Hosting is deferred.
